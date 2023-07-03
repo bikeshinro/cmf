@@ -11,10 +11,8 @@ from mmdet.core import (build_anchor_generator, build_assigner,
 class MIAODRetinaHead(MIAODHead):
     r"""An anchor-based head used in `RetinaNet
     <https://arxiv.org/pdf/1708.02002.pdf>`_.
-
     The head contains two subnetworks. The first classifies anchor boxes and
     the second regresses deltas for the anchors.
-
     Example:
         >>> import torch
         >>> self = MIAODRetinaHead(11, 7)
@@ -40,7 +38,12 @@ class MIAODRetinaHead(MIAODHead):
         self.relu = nn.ReLU(inplace=True)
         self.f_1_convs = nn.ModuleList()
         self.f_2_convs = nn.ModuleList()
-        self.f_r_convs = nn.ModuleList()
+        self.f_3_convs = nn.ModuleList()
+        self.f_4_convs = nn.ModuleList()
+        self.f_r_1_convs = nn.ModuleList()
+        self.f_r_2_convs = nn.ModuleList()
+        self.f_r_3_convs = nn.ModuleList()
+        self.f_r_4_convs = nn.ModuleList()
         self.f_mil_convs = nn.ModuleList()
         for i in range(self.stacked_convs):
             chn = self.in_channels if i == 0 else self.feat_channels
@@ -48,13 +51,28 @@ class MIAODRetinaHead(MIAODHead):
                                              conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
             self.f_2_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
                                              conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
-            self.f_r_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
+            self.f_3_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
+                                             conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
+            self.f_4_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
+                                             conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
+            self.f_r_1_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
+                                             conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
+            self.f_r_2_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
+                                             conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
+            self.f_r_3_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
+                                             conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
+            self.f_r_4_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
                                              conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
             self.f_mil_convs.append(ConvModule(chn, self.feat_channels, 3, stride=1, padding=1,
                                                conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
         self.f_1_retina = nn.Conv2d(self.feat_channels, self.N * self.cls_out_channels, 3, padding=1)
         self.f_2_retina = nn.Conv2d(self.feat_channels, self.N * self.cls_out_channels, 3, padding=1)
-        self.f_r_retina = nn.Conv2d(self.feat_channels, self.N * 4, 3, padding=1)
+        self.f_3_retina = nn.Conv2d(self.feat_channels, self.N * self.cls_out_channels, 3, padding=1)
+        self.f_4_retina = nn.Conv2d(self.feat_channels, self.N * self.cls_out_channels, 3, padding=1)
+        self.f_r_1_retina = nn.Conv2d(self.feat_channels, self.N * 4, 3, padding=1)
+        self.f_r_2_retina = nn.Conv2d(self.feat_channels, self.N * 4, 3, padding=1)
+        self.f_r_3_retina = nn.Conv2d(self.feat_channels, self.N * 4, 3, padding=1)
+        self.f_r_4_retina = nn.Conv2d(self.feat_channels, self.N * 4, 3, padding=1)
         self.f_mil_retina = nn.Conv2d(self.feat_channels, self.N * self.cls_out_channels, 3, padding=1)
 
     def init_weights(self):
@@ -63,20 +81,33 @@ class MIAODRetinaHead(MIAODHead):
             normal_init(m.conv, std=0.01)
         for m in self.f_2_convs:
             normal_init(m.conv, std=0.01)
-        for m in self.f_r_convs:
+        for m in self.f_3_convs:
+            normal_init(m.conv, std=0.01)    
+        for m in self.f_4_convs:
+            normal_init(m.conv, std=0.01)
+        for m in self.f_r_1_convs:
+            normal_init(m.conv, std=0.01)
+        for m in self.f_r_2_convs:
+            normal_init(m.conv, std=0.01)
+        for m in self.f_r_3_convs:
+            normal_init(m.conv, std=0.01)
+        for m in self.f_r_4_convs:
             normal_init(m.conv, std=0.01)
         bias_cls = bias_init_with_prob(0.01)
         normal_init(self.f_1_retina, std=0.01, bias=bias_cls)
         normal_init(self.f_2_retina, std=0.01, bias=bias_cls)
+        normal_init(self.f_3_retina, std=0.01, bias=bias_cls)
+        normal_init(self.f_4_retina, std=0.01, bias=bias_cls)
         normal_init(self.f_mil_retina, std=0.01, bias=bias_cls)
-        normal_init(self.f_r_retina, std=0.01)
+        normal_init(self.f_r_1_retina, std=0.01)
+        normal_init(self.f_r_2_retina, std=0.01)
+        normal_init(self.f_r_3_retina, std=0.01)
+        normal_init(self.f_r_4_retina, std=0.01)
 
     def forward_single(self, x):
         """Forward feature of a single scale level.
-
         Args:
             x (Tensor): Features of a single scale level.
-
         Returns:
             tuple:
                 y_head_f_i (Tensor): Cls scores for a single scale level
@@ -86,24 +117,44 @@ class MIAODRetinaHead(MIAODHead):
         """
         f_1_feat = x
         f_2_feat = x
-        f_r_feat = x
+        f_3_feat = x
+        f_4_feat = x
+        f_r_1_feat = x
+        f_r_2_feat = x
+        f_r_3_feat = x
+        f_r_4_feat = x
         f_mil_feat = x
         for cls_conv1 in self.f_1_convs:
             f_1_feat = cls_conv1(f_1_feat)
         for cls_conv2 in self.f_2_convs:
             f_2_feat = cls_conv2(f_2_feat)
-        for reg_conv in self.f_r_convs:
-            f_r_feat = reg_conv(f_r_feat)
+        for cls_conv3 in self.f_3_convs:
+            f_3_feat = cls_conv3(f_3_feat)
+        for cls_conv4 in self.f_4_convs:
+            f_4_feat = cls_conv4(f_4_feat)
+        for reg_conv1 in self.f_r_1_convs:
+            f_r_1_feat = reg_conv1(f_r_1_feat)
+        for reg_conv2 in self.f_r_2_convs:
+            f_r_2_feat = reg_conv2(f_r_2_feat)
+        for reg_conv3 in self.f_r_3_convs:
+            f_r_3_feat = reg_conv3(f_r_3_feat)
+        for reg_conv4 in self.f_r_4_convs:
+            f_r_4_feat = reg_conv4(f_r_4_feat)
         for mil_conv in self.f_mil_convs:
             f_mil_feat = mil_conv(f_mil_feat)
         y_head_f_1 = self.f_1_retina(f_1_feat)
         y_head_f_2 = self.f_2_retina(f_2_feat)
-        y_head_f_r = self.f_r_retina(f_r_feat)
+        y_head_f_3 = self.f_3_retina(f_3_feat)
+        y_head_f_4 = self.f_4_retina(f_4_feat)
+        y_head_f_r_1 = self.f_r_1_retina(f_r_1_feat)
+        y_head_f_r_2 = self.f_r_2_retina(f_r_2_feat)
+        y_head_f_r_3 = self.f_r_3_retina(f_r_3_feat)
+        y_head_f_r_4 = self.f_r_4_retina(f_r_4_feat)
         y_head_f_mil = self.f_mil_retina(f_mil_feat)
-        y_head_cls_term2 = (y_head_f_1 + y_head_f_2) / 2
+        y_head_cls_term2 = (y_head_f_1 + y_head_f_2 + y_head_f_3 + y_head_f_4) / 4
         y_head_cls_term2 = y_head_cls_term2.detach()
         y_head_f_mil = y_head_f_mil.permute(0, 2, 3, 1).reshape(y_head_f_1.shape[0], -1, self.cls_out_channels)
         y_head_cls_term2 = y_head_cls_term2.permute(0, 2, 3, 1).reshape(y_head_f_1.shape[0],
                                                                             -1, self.cls_out_channels)
         y_head_cls = y_head_f_mil.softmax(2) * y_head_cls_term2.sigmoid().max(2, keepdim=True)[0].softmax(1)
-        return y_head_f_1, y_head_f_2, y_head_f_r, y_head_cls
+        return y_head_f_1, y_head_f_2, y_head_f_3, y_head_f_4, y_head_f_r_1, y_head_f_r_2, y_head_f_r_3, y_head_f_r_4, y_head_cls

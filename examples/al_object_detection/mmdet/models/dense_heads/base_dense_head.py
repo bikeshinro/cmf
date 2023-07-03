@@ -41,39 +41,51 @@ class BaseDenseHead(nn.Module, metaclass=ABCMeta):
                 ignored, shape (num_ignored_gts, 4).
             proposal_cfg (mmcv.Config): Test / postprocessing configuration,
                 if None, test_cfg would be used
-
         Returns:
             tuple:
                 losses: (dict[str, Tensor]): A dictionary of loss components.
                 proposal_list (list[Tensor]): Proposals of each image.
         """
-        y_head_f_1, y_head_f_2, y_head_f_r, y_head_cls = self(x)
+        #added two new classifier heads (3 and 4) was formerly two heads, and also added three new heads to the localizer head. The L_det is also updated to L_det_4
+        y_head_f_1, y_head_f_2, y_head_f_3, y_head_f_4, y_head_f_r_1, y_head_f_r_2, y_head_f_r_3, y_head_f_r_4, y_head_cls = self(x)
         # Label set training
         if losstype.losstype == 0:
-            outs = (y_head_f_1, y_head_f_r, y_head_cls)
+            outs = (y_head_f_1, y_head_f_r_1, y_head_cls)
             if y_cls_img is None:
                 loss_inputs = outs + (y_loc_img, img_metas)
             else:
                 loss_inputs = outs + (y_loc_img, y_cls_img, img_metas)
             L_det_1 = self.L_det(*loss_inputs, y_loc_img_ignore=y_loc_img_ignore)
-            outs = (y_head_f_2, y_head_f_r, y_head_cls)
+            outs = (y_head_f_2, y_head_f_r_2, y_head_cls)
             if y_cls_img is None:
                 loss_inputs = outs + (y_loc_img, img_metas)
             else:
                 loss_inputs = outs + (y_loc_img, y_cls_img, img_metas)
             L_det_2 = self.L_det(*loss_inputs, y_loc_img_ignore=y_loc_img_ignore)
-            l_det_cls = list(map(lambda m, n: (m + n)/2, L_det_1['l_det_cls'], L_det_2['l_det_cls']))
-            l_det_loc = list(map(lambda m, n: (m + n)/2, L_det_1['l_det_loc'], L_det_2['l_det_loc']))
-            l_imgcls = list(map(lambda m, n: (m + n)/2, L_det_1['l_imgcls'], L_det_2['l_imgcls']))
+            outs = (y_head_f_3, y_head_f_r_3, y_head_cls)
+            if y_cls_img is None:
+                loss_inputs = outs + (y_loc_img, img_metas)
+            else:
+                loss_inputs = outs + (y_loc_img, y_cls_img, img_metas)
+            L_det_3 = self.L_det(*loss_inputs, y_loc_img_ignore=y_loc_img_ignore)
+            outs = (y_head_f_4, y_head_f_r_4, y_head_cls)
+            if y_cls_img is None:
+                loss_inputs = outs + (y_loc_img, img_metas)
+            else:
+                loss_inputs = outs + (y_loc_img, y_cls_img, img_metas)
+            L_det_4 = self.L_det(*loss_inputs, y_loc_img_ignore=y_loc_img_ignore)
+            l_det_cls = list(map(lambda m, n, o, p: (m + n + o + p)/4, L_det_1['l_det_cls'], L_det_2['l_det_cls'], L_det_3['l_det_cls'], L_det_4['l_det_cls']))
+            l_det_loc = list(map(lambda m, n, o, p: (m + n + o + p)/4, L_det_1['l_det_loc'], L_det_2['l_det_loc'], L_det_3['l_det_loc'], L_det_4['l_det_loc']))
+            l_imgcls = list(map(lambda m, n, o, p: (m + n + o + p)/4, L_det_1['l_imgcls'], L_det_2['l_imgcls'], L_det_3['l_imgcls'], L_det_4['l_imgcls']))
             L_det = dict(l_det_cls=l_det_cls, l_det_loc=l_det_loc, l_imgcls=l_imgcls)
             if proposal_cfg is None:
                 return L_det
             else:
                 proposal_list = self.get_bboxes(*outs, img_metas, cfg=proposal_cfg)
                 return L_det, proposal_list
-        # Re-weighting and minimizing instance uncertainty
+        # Re-weighting and minimizing instance uncertainty 
         elif losstype.losstype == 1:
-            outs = ((y_head_f_1, y_head_f_2), y_head_f_r, y_head_cls)
+            outs = ((y_head_f_1, y_head_f_2,y_head_f_3,y_head_f_4), (y_head_f_r_1,y_head_f_r_2,y_head_f_r_3,y_head_f_r_4), y_head_cls)
             if y_cls_img is None:
                 loss_inputs = outs + (y_loc_img, img_metas)
             else:
@@ -88,7 +100,7 @@ class BaseDenseHead(nn.Module, metaclass=ABCMeta):
                 return L_wave_min, proposal_list
         # Re-weighting and maximizing instance uncertainty
         else:
-            outs = ((y_head_f_1, y_head_f_2), y_head_f_r, y_head_cls)
+            outs = ((y_head_f_1, y_head_f_2,y_head_f_3,y_head_f_4), (y_head_f_r_1,y_head_f_r_2,y_head_f_r_3,y_head_f_r_4), y_head_cls)
             if y_cls_img is None:
                 loss_inputs = outs + (y_loc_img, img_metas)
             else:
@@ -101,3 +113,4 @@ class BaseDenseHead(nn.Module, metaclass=ABCMeta):
             else:
                 proposal_list = self.get_bboxes(*outs, img_metas, cfg=proposal_cfg)
                 return L_wave_max, proposal_list
+            

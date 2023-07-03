@@ -27,7 +27,6 @@ class MyEntLoss(nn.Module):
 @HEADS.register_module()
 class MIAODHead(BaseDenseHead):
     """Anchor-based head (RPN, RetinaNet, SSD, etc.).
-
     Args:
         C (int): Number of categories excluding the background
             category.
@@ -98,24 +97,33 @@ class MIAODHead(BaseDenseHead):
         self.N = self.anchor_generator.num_base_anchors[0]
         self._init_layers()
 
+#added two new classifier heads 3 and 4 was formerly two heads, and also added three new heads for the localization head
     def _init_layers(self):
         """Initialize layers of the head."""
         self.conv_f_1 = nn.Conv2d(self.in_channels, self.N * self.cls_out_channels, 1)
         self.conv_f_2 = nn.Conv2d(self.in_channels, self.N * self.cls_out_channels, 1)
-        self.conv_f_r = nn.Conv2d(self.in_channels, self.N * 4, 1)
+        self.conv_f_3 = nn.Conv2d(self.in_channels, self.N * self.cls_out_channels, 1)
+        self.conv_f_4 = nn.Conv2d(self.in_channels, self.N * self.cls_out_channels, 1)
+        self.conv_f_r_1 = nn.Conv2d(self.in_channels, self.N * 4, 1)
+        self.conv_f_r_2 = nn.Conv2d(self.in_channels, self.N * 4, 1)
+        self.conv_f_r_3 = nn.Conv2d(self.in_channels, self.N * 4, 1)
+        self.conv_f_r_4 = nn.Conv2d(self.in_channels, self.N * 4, 1)
 
     def init_weights(self):
         """Initialize weights of the head."""
         normal_init(self.conv_f_1, std=0.01)
         normal_init(self.conv_f_2, std=0.01)
-        normal_init(self.conv_f_r, std=0.01)
+        normal_init(self.conv_f_3, std=0.01)
+        normal_init(self.conv_f_4, std=0.01)
+        normal_init(self.conv_f_r_1, std=0.01)
+        normal_init(self.conv_f_r_2, std=0.01)
+        normal_init(self.conv_f_r_3, std=0.01)
+        normal_init(self.conv_f_r_4, std=0.01)
 
     def forward_single(self, x):
         """Forward feature of a single scale level.
-
         Args:
             x (Tensor): Features of a single scale level.
-
         Returns:
             tuple:
                 y_head_f_single (Tensor): Cls scores for a single scale level \
@@ -125,19 +133,21 @@ class MIAODHead(BaseDenseHead):
         """
         y_head_f_1_single = self.conv_f_1(x)
         y_head_f_2_single = self.conv_f_2(x)
-        y_head_f_r_single = self.conv_f_r(x)
-        return y_head_f_1_single, y_head_f_2_single, y_head_f_r_single
+        y_head_f_3_single = self.conv_f_3(x)
+        y_head_f_4_single = self.conv_f_4(x)
+        y_head_f_r_1_single = self.conv_f_r_1(x)
+        y_head_f_r_2_single = self.conv_f_r_2(x)
+        y_head_f_r_3_single = self.conv_f_r_3(x)
+        y_head_f_r_4_single = self.conv_f_r_4(x)
+        return y_head_f_1_single, y_head_f_2_single, y_head_f_3_single, y_head_f_4_single, y_head_f_r_1_single, y_head_f_r_2_single, y_head_f_r_3_single, y_head_f_r_4_single
 
     def forward(self, feats):
         """Forward features from the upstream network.
-
         Args:
             feats (tuple[Tensor]): Features from the upstream network, each is
                 a 4D-tensor.
-
         Returns:
             tuple: A tuple of classification scores and bbox prediction.
-
                 - y_f (list[Tensor]): Classification scores for all \
                     scale levels, each is a 4D-tensor, the channels number \
                     is N * C.
@@ -149,12 +159,10 @@ class MIAODHead(BaseDenseHead):
 
     def get_anchors(self, featmap_sizes, img_metas, device='cuda'):
         """Get anchors according to feature map sizes.
-
         Args:
             featmap_sizes (list[tuple]): Multi-level feature map sizes.
             img_metas (list[dict]): Image meta info.
             device (torch.device | str): Device for returned tensors
-
         Returns:
             tuple:
                 x_i (list[Tensor]): Anchors of each image.
@@ -176,7 +184,6 @@ class MIAODHead(BaseDenseHead):
                             label_channels=1, unmap_outputs=True):
         """Compute regression and classification targets for anchors in a
         single image.
-
         Args:
             flat_anchors (Tensor): Multi-level anchors of the image, which are
                 concatenated into a single tensor of shape (N ,4)
@@ -194,7 +201,6 @@ class MIAODHead(BaseDenseHead):
             label_channels (int): Channel of label.
             unmap_outputs (bool): Whether to map outputs back to the original
                 set of anchors.
-
         Returns:
             tuple:
                 y_cls (list[Tensor]): Labels of each level
@@ -253,7 +259,6 @@ class MIAODHead(BaseDenseHead):
                     y_cls_img_list=None, label_channels=1, unmap_outputs=True, return_sampling_results=False):
         """Compute regression and classification targets for anchors in
         multiple images.
-
         Args:
             x_i (list[list[Tensor]]): Multi level anchors of each
                 image. The outer list indicates images, and the inner list
@@ -272,10 +277,8 @@ class MIAODHead(BaseDenseHead):
             unmap_outputs (bool): Whether to map outputs back to the original
                 set of anchors.
             return_sampling_results
-
         Returns:
             tuple: Usually returns a tuple containing learning targets.
-
                 - y_cls (list[Tensor]): Labels of each level.
                 - label_weights_list (list[Tensor]): Label weights of each \
                     level.
@@ -333,7 +336,6 @@ class MIAODHead(BaseDenseHead):
     def l_det(self, y_head_f_single, y_head_f_r_single, x_i_single, y_cls_single, label_weights,
               y_loc_single, bbox_weights, num_total_samples):
         """Compute loss of a single scale level.
-
         Args:
             y_head_f_single (Tensor): Box scores for each scale level
                 Has shape (n, N * C, H, W).
@@ -352,7 +354,6 @@ class MIAODHead(BaseDenseHead):
             num_total_samples (int): If sampling, num total samples equal to
                 the number of total anchors; Otherwise, it is the number of
                 positive anchors.
-
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
@@ -378,7 +379,6 @@ class MIAODHead(BaseDenseHead):
     @force_fp32(apply_to=('y_f', 'y_f_r'))
     def L_det(self, y_f, y_f_r, y_head_cls, y_loc_img, y_cls_img, img_metas, y_loc_img_ignore=None):
         """Compute losses of the head.
-
         Args:
             y_f (list[Tensor]): Box scores for each scale level
                 Has shape (n, N * C, H, W)
@@ -391,7 +391,6 @@ class MIAODHead(BaseDenseHead):
                 image size, scaling factor, etc.
             y_loc_img_ignore (None | list[Tensor]): specify which bounding
                 boxes can be ignored when computing the loss. Default: None
-
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
@@ -435,13 +434,18 @@ class MIAODHead(BaseDenseHead):
         y_head_cls_1level = y_head_cls_1level.clamp(1e-5, 1.0-1e-5)
         return y_head_cls_1level, y_cls_1level
 
-    def l_wave_dis(self, y_head_f_1_single, y_head_f_2_single, y_head_cls_single, y_head_f_r_single,
+    def l_wave_dis(self, y_head_f_1_single, y_head_f_2_single, y_head_f_3_single, y_head_f_4_single, y_head_cls_single, y_head_f_r_single,
                    x_i_single, y_cls_single, label_weights, y_loc_single, bbox_weights, num_total_samples):
         y_head_f_1_single = y_head_f_1_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         y_head_f_2_single = y_head_f_2_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+        y_head_f_3_single = y_head_f_3_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+        y_head_f_4_single = y_head_f_4_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         y_head_f_1_single = nn.Sigmoid()(y_head_f_1_single)
         y_head_f_2_single = nn.Sigmoid()(y_head_f_2_single)
+        y_head_f_3_single = nn.Sigmoid()(y_head_f_3_single)
+        y_head_f_4_single = nn.Sigmoid()(y_head_f_4_single)
         # mil weight
+        #to be continued, i already added all the y head single 1 to 4
         w_i = y_head_cls_single.detach()
         l_det_cls_all = (abs(y_head_f_1_single - y_head_f_2_single) *
                          w_i.reshape(-1, self.cls_out_channels)).mean(dim=1).sum() * self.param_lambda
@@ -468,21 +472,28 @@ class MIAODHead(BaseDenseHead):
         num_level_anchors = [x_i_single.size(0) for x_i_single in x_i[0]]
         # concat all level anchors and flags to a single tensor
         concat_x_i = []
+        #i added the two new heads, 3 new regressor heads, increased the lamda and averaged over 4
         for i in range(len(x_i)):
             concat_x_i.append(torch.cat(x_i[i]))
         all_x_i = images_to_levels(concat_x_i, num_level_anchors)
-        l_wave_dis, l_det_loc = multi_apply(self.l_wave_dis, y_f[0], y_f[1], y_head_cls, y_f_r, all_x_i, y_cls,
+        l_wave_dis, l_det_loc = multi_apply(self.l_wave_dis, y_f[0], y_f[1], y_f[2], y_f[3], y_head_cls, y_f_r[0], y_f_r[1],y_f_r[2], y_f_r[3], all_x_i, y_cls,
                                             label_weights_list, y_loc, bbox_weights_list,
-                                            num_total_samples=num_total_samples)
-        l_det_cls1, l_det_loc1 = multi_apply(self.l_det, y_f[0], y_f_r, all_x_i,
+                                            num_total_samples=num_total_samples)#add this to the first line y_f[2], y_f[3]
+        l_det_cls1, l_det_loc1 = multi_apply(self.l_det, y_f[0], y_f_r[0], all_x_i,
                                              y_cls, label_weights_list, y_loc, bbox_weights_list,
                                              num_total_samples=num_total_samples)
-        l_det_cls2, l_det_loc2 = multi_apply(self.l_det, y_f[1], y_f_r, all_x_i,
+        l_det_cls2, l_det_loc2 = multi_apply(self.l_det, y_f[1], y_f_r[1], all_x_i,
+                                             y_cls, label_weights_list, y_loc, bbox_weights_list,
+                                             num_total_samples=num_total_samples)
+        l_det_cls3, l_det_loc3 = multi_apply(self.l_det, y_f[2], y_f_r[2], all_x_i,
+                                             y_cls, label_weights_list, y_loc, bbox_weights_list,
+                                             num_total_samples=num_total_samples)
+        l_det_cls4, l_det_loc4 = multi_apply(self.l_det, y_f[3], y_f_r[3], all_x_i,
                                              y_cls, label_weights_list, y_loc, bbox_weights_list,
                                              num_total_samples=num_total_samples)
         if img_metas[0]['is_unlabeled'] :
-            l_det_cls = list(map(lambda m, n: (m + n) * 0, l_det_cls1, l_det_cls2))
-            l_det_loc = list(map(lambda m, n: (m + n) * 0, l_det_loc1, l_det_loc2))
+            l_det_cls = list(map(lambda m, n, o, p: (m + n + o + p) * 0, l_det_cls1, l_det_cls2, l_det_cls3, l_det_cls4))
+            l_det_loc = list(map(lambda m, n, o, p: (m + n + o + p) * 0, l_det_loc1, l_det_loc2, l_det_loc3, l_det_loc4))
             for (i, value) in enumerate(l_det_loc):
                 if value.isnan():
                     l_det_loc[i].data = torch.tensor(0.0, device=device)
@@ -493,8 +504,8 @@ class MIAODHead(BaseDenseHead):
             else:
                 l_imgcls = self.l_imgcls(y_head_cls_1level, y_pseudo)
         else:
-            l_det_cls = list(map(lambda m, n: (m + n) / 2, l_det_cls1, l_det_cls2))
-            l_det_loc = list(map(lambda m, n: (m + n) / 2, l_det_loc1, l_det_loc2))
+            l_det_cls = list(map(lambda m, n, o, p: (m + n + o + p) / 4, l_det_cls1, l_det_cls2, l_det_cls3, l_det_cls4))
+            l_det_loc = list(map(lambda m, n, o, p: (m + n + o + p) / 4, l_det_loc1, l_det_loc2, l_det_loc3, l_det_loc4))
             l_wave_dis = list(map(lambda m: m * 0.0, l_wave_dis))
             # compute mil loss
             y_head_cls_1level, y_cls_1level = self.get_img_gtlabel_score(y_cls_img, y_head_cls)
@@ -507,11 +518,14 @@ class MIAODHead(BaseDenseHead):
         y_head_cls_1level = torch.zeros(batch_size, self.cls_out_channels).cuda(torch.cuda.current_device())
         y_pseudo = torch.zeros(batch_size, self.cls_out_channels).cuda(torch.cuda.current_device())
         # predict image pseudo label
+        #i added the two new heads and also averaged it over 4 instead of existing 2
         with torch.no_grad():
             for s in range(len(y_f[0])):
                 y_head_f_i = y_f[0][s].permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid()
                 y_head_f_i = y_f[1][s].permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid() + y_head_f_i
-                y_head_f_i = y_head_f_i.max(1)[0] / 2
+                y_head_f_i = y_f[2][s].permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid() + y_head_f_i
+                y_head_f_i = y_f[3][s].permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid() + y_head_f_i
+                y_head_f_i = y_head_f_i.max(1)[0] / 4
                 y_pseudo = torch.max(y_pseudo, y_head_f_i)
             y_pseudo[y_pseudo >= 0.5] = 1
             y_pseudo[y_pseudo < 0.5] = 0
@@ -521,12 +535,16 @@ class MIAODHead(BaseDenseHead):
         y_head_cls_1level = y_head_cls_1level.clamp(1e-5, 1.0 - 1e-5)
         return y_head_cls_1level, y_pseudo.detach()
 
-    def l_wave_dis_minus(self, y_head_f_1_single, y_head_f_2_single, y_head_cls_single, y_head_f_r_single,
+    def l_wave_dis_minus(self, y_head_f_1_single, y_head_f_2_single, y_head_f_3_single, y_head_f_4_single, y_head_cls_single, y_head_f_r_single,
                          x_i_single, y_cls_single, label_weights, y_loc_single, bbox_weights, num_total_samples):
         y_head_f_1_single = y_head_f_1_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         y_head_f_2_single = y_head_f_2_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+        y_head_f_3_single = y_head_f_3_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+        y_head_f_4_single = y_head_f_4_single.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         y_head_f_1_single = nn.Sigmoid()(y_head_f_1_single)
         y_head_f_2_single = nn.Sigmoid()(y_head_f_2_single)
+        y_head_f_3_single = nn.Sigmoid()(y_head_f_3_single)
+        y_head_f_4_single = nn.Sigmoid()(y_head_f_4_single)
         # mil weight
         w_i = y_head_cls_single.detach()
         l_det_cls_all = ((1 - abs(y_head_f_1_single - y_head_f_2_single)) *
@@ -557,31 +575,36 @@ class MIAODHead(BaseDenseHead):
         for i in range(len(x_i)):
             concat_x_i.append(torch.cat(x_i[i]))
         all_x_i = images_to_levels(concat_x_i, num_level_anchors)
-        l_wave_dis_minus, l_det_loc = multi_apply(self.l_wave_dis_minus, y_f[0], y_f[1], y_head_cls, y_f_r, all_x_i,
+        l_wave_dis_minus, l_det_loc = multi_apply(self.l_wave_dis_minus, y_f[0], y_f[1], y_f[2], y_f[3], y_head_cls, y_f_r[0], y_f_r[1],y_f_r[2], y_f_r[3], all_x_i,
                                                   y_cls, label_weights_list, y_loc, bbox_weights_list,
                                                   num_total_samples=num_total_samples)
-        l_det_cls1, l_det_loc1 = multi_apply(self.l_det, y_f[0], y_f_r, all_x_i,
+        l_det_cls1, l_det_loc1 = multi_apply(self.l_det, y_f[0], y_f_r[0], all_x_i,
                                              y_cls, label_weights_list, y_loc, bbox_weights_list,
                                              num_total_samples=num_total_samples)
-        l_det_cls2, l_det_loc2 = multi_apply(self.l_det, y_f[1], y_f_r, all_x_i,
+        l_det_cls2, l_det_loc2 = multi_apply(self.l_det, y_f[1], y_f_r[1], all_x_i,
                                              y_cls, label_weights_list, y_loc, bbox_weights_list,
-                                    num_total_samples=num_total_samples)
+                                             num_total_samples=num_total_samples)
+        l_det_cls3, l_det_loc3 = multi_apply(self.l_det, y_f[2], y_f_r[2], all_x_i,
+                                             y_cls, label_weights_list, y_loc, bbox_weights_list,
+                                             num_total_samples=num_total_samples)
+        l_det_cls4, l_det_loc4 = multi_apply(self.l_det, y_f[3], y_f_r[3], all_x_i,
+                                             y_cls, label_weights_list, y_loc, bbox_weights_list,
+                                             num_total_samples=num_total_samples)
         if img_metas[0]['is_unlabeled']:
-            l_det_cls = list(map(lambda m, n: (m + n) * 0, l_det_cls1, l_det_cls2))
-            l_det_loc = list(map(lambda m, n: (m + n) * 0, l_det_loc1, l_det_loc2))
+            l_det_cls = list(map(lambda m, n, o, p: (m + n + o + p) * 0, l_det_cls1, l_det_cls2, l_det_cls3, l_det_cls4))
+            l_det_loc = list(map(lambda m, n, o, p: (m + n + o + p) * 0, l_det_loc1, l_det_loc2, l_det_loc3, l_det_loc4))
             for (i, value) in enumerate(l_det_loc):
                 if value.isnan():
                     l_det_loc[i].data = torch.tensor(0.0, device=device)
         else:
-            l_det_cls = list(map(lambda m, n: (m + n) / 2, l_det_cls1, l_det_cls2))
-            l_det_loc = list(map(lambda m, n: (m + n) / 2, l_det_loc1, l_det_loc2))
+            l_det_cls = list(map(lambda m, n, o, p: (m + n + o + p) / 4, l_det_cls1, l_det_cls2, l_det_cls3, l_det_cls4))
+            l_det_loc = list(map(lambda m, n, o, p: (m + n + o + p) / 4, l_det_loc1, l_det_loc2, l_det_loc3, l_det_loc4))
             l_wave_dis_minus = list(map(lambda m: m * 0.0, l_wave_dis_minus))
         return dict(l_det_cls=l_det_cls, l_det_loc=l_det_loc, l_wave_dis_minus=l_wave_dis_minus)
 
     @force_fp32(apply_to=('y_f', 'y_f_r'))
     def get_bboxes(self, y_f, y_f_r, img_metas, cfg=None, rescale=False):
         """Transform network output for a batch into bbox predictions.
-
         Args:
             y_f (list[Tensor]): Box scores for each scale level
                 Has shape (n, N * C, H, W)
@@ -593,7 +616,6 @@ class MIAODHead(BaseDenseHead):
                 if None, test_cfg would be used
             rescale (bool): If True, return boxes in original image space.
                 Default: False.
-
         Returns:
             list[tuple[Tensor, Tensor]]: Each item in result_list is 2-tuple.
                 The first item is an (n, 5) tensor, where the first 4 columns
@@ -601,7 +623,6 @@ class MIAODHead(BaseDenseHead):
                 5-th column is a score between 0 and 1. The second item is a
                 (n,) tensor where each item is the predicted class labelof the
                 corresponding box.
-
         Example:
             >>> import mmcv
             >>> self = MIAODHead(
@@ -647,7 +668,6 @@ class MIAODHead(BaseDenseHead):
     def _get_bboxes_single(self, y_head_f_single_list, y_head_f_r_single_list,
                            mlvl_anchors, img_shape, scale_factor, cfg, rescale=False):
         """Transform outputs for a single batch item into bbox predictions.
-
         Args:
             y_head_f_single_list (list[Tensor]): Box scores for a single scale level
                 Has shape (N * C, H, W).
@@ -662,7 +682,6 @@ class MIAODHead(BaseDenseHead):
             cfg (mmcv.Config): Test / postprocessing configuration,
                 if None, test_cfg would be used.
             rescale (bool): If True, return boxes in original image space.
-
         Returns:
             Tensor: Labeled boxes in shape (n, 5), where the first 4 columns
                 are bounding box positions (tl_x, tl_y, br_x, br_y) and the
@@ -715,3 +734,4 @@ class MIAODHead(BaseDenseHead):
     def loss(self, **kwargs):
         # This function is to avoid the TypeError caused by the abstract method defined in "base_dense_head.py".
         return
+    

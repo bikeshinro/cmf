@@ -211,7 +211,7 @@ def main():
 
         # ---------- Re-weighting and Minimizing Instance Uncertainty ----------
 
-        cfg_u = create_X_U_file(cfg.deepcopy(), X_U, all_anns, cycle)
+        """ cfg_u = create_X_U_file(cfg.deepcopy(), X_U, all_anns, cycle)
         cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
         if dist.is_initialized():
             torch.distributed.barrier()
@@ -291,4 +291,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main() """

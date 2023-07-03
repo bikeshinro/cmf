@@ -118,8 +118,14 @@ def inference_detector(model, img):
         y_head_f_1, y_head_f_2, y_head_cls = model(return_loss=False, rescale=True, return_box=False, **data)
         y_head_f_1 = torch.cat(y_head_f_1, 0)
         y_head_f_2 = torch.cat(y_head_f_2, 0)
+        y_head_f_3 = torch.cat(y_head_f_3, 0)
+        y_head_f_4 = torch.cat(y_head_f_4, 0)
         y_head_f_1 = torch.nn.Sigmoid()(y_head_f_1)
         y_head_f_2 = torch.nn.Sigmoid()(y_head_f_2)
+        y_head_f_3 = torch.nn.Sigmoid()(y_head_f_3)
+        y_head_f_4 = torch.nn.Sigmoid()(y_head_f_4)
+        #y_head_f_r_1
+        #update it here too?
         loss_l2_p = (y_head_f_1 - y_head_f_2).pow(2)
         uncertainty_all_N = loss_l2_p.mean(dim=1)
         arg = uncertainty_all_N.argsort()
