@@ -157,4 +157,5 @@ class MIAODRetinaHead(MIAODHead):
         y_head_cls_term2 = y_head_cls_term2.permute(0, 2, 3, 1).reshape(y_head_f_1.shape[0],
                                                                             -1, self.cls_out_channels)
         y_head_cls = y_head_f_mil.softmax(2) * y_head_cls_term2.sigmoid().max(2, keepdim=True)[0].softmax(1)
+        print("Initialized RETINA MIAOD head")
         return y_head_f_1, y_head_f_2, y_head_f_3, y_head_f_4, y_head_f_r_1, y_head_f_r_2, y_head_f_r_3, y_head_f_r_4, y_head_cls
