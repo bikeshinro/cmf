@@ -284,11 +284,11 @@ def main():
                        distributed=distributed,
                        validate=args.no_validate,
                        timestamp=timestamp, meta=meta)
-        cfg = cfg_bak
+        cfg = cfg_bak """
 
     # save the model to checkpoint
     save_checkpoint(model, args.model, meta=cfg.checkpoint_config.meta)
 
 
 if __name__ == '__main__':
-    main() """
+    main() 

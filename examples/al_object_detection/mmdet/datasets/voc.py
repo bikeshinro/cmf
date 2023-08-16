@@ -13,12 +13,13 @@ class VOCDataset(XMLDataset):
 
     def __init__(self, **kwargs):
         super(VOCDataset, self).__init__(**kwargs)
-        if 'VOC2007' in self.img_prefix:
+        self.year = None
+        """if 'VOC2007' in self.img_prefix:
             self.year = 2007
         elif 'VOC2012' in self.img_prefix:
             self.year = 2012
         else:
-            raise ValueError('Cannot infer dataset year from img_prefix')
+            raise ValueError('Cannot infer dataset year from img_prefix')""" #this works if the dataset is in two folders 07 and 12
 
     def evaluate(self,
                  results,
@@ -59,10 +60,11 @@ class VOCDataset(XMLDataset):
         eval_results = {}
         if metric == 'mAP':
             assert isinstance(iou_thr, float)
-            if self.year == 2007:
+            ds_name = 'voc07'
+            """if self.year == 2007:
                 ds_name = 'voc07'
             else:
-                ds_name = self.dataset.CLASSES
+                ds_name = self.dataset.CLASSES""" #no need for if statement since dataset is concatenated
             mean_ap, _ = eval_map(
                 results,
                 annotations,

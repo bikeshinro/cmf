@@ -1,6 +1,7 @@
 # Please change the dataset directory to your actual directory
 #data_root = '/home/mfoltin2/AI/al/object_detection/data/VOCdevkit/'
-data_root = '/mnt/beegfs/PAMS/data/tomography_data/tiled_annotations/'
+#data_root = '/mnt/beegfs/PAMS/data/tomography_data/tiled_annotations/'
+data_root = '/home/keshinro/al_object_detection_prob_models/data/VOCdevkit/' #using the concatenated PASCAL VOC dataset
 
 _base_ = [
     './_base_/retinanet_r50_fpn.py', './_base_/voc0712.py',
@@ -10,12 +11,12 @@ _base_ = [
 data = dict(
     test=dict(
         ann_file=[
-            data_root + 'train_val.txt'],#TRAINING INDEXES? or VAL?
-        img_prefix=[data_root])
+            data_root + 'VOC/ImageSets/Main/trainval.txt'],#TRAINING INDEXES? or VAL?
+        img_prefix=[data_root + 'VOC/'])
 )
 model = dict(bbox_head=dict(C=20))
 # The initial learning rate, momentum, weight decay can be changed here.
-optimizer = dict(type='SGD', lr=1e-6, momentum=0.9, weight_decay=0.0001)#learning rate changed from 1e-3 
+optimizer = dict(type='SGD', lr=1e-3, momentum=0.9, weight_decay=0.0001)#learning rate changed from 1e-6 
 optimizer_config = dict(grad_clip=None)
 # The moment when the learning rate drops can be changed here.
 lr_config = dict(policy='step', step=[2])

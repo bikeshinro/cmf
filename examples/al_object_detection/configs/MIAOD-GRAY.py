@@ -1,6 +1,6 @@
 # Please change the dataset directory to your actual directory
-#data_root = '/lustre/data/hdcdatasets/'
-data_root = '/mnt/beegfs/PAMS/data/tomography_data/tiled_annotations/'
+data_root = '/lustre/data/hdcdatasets/'
+#data_root = '/mnt/beegfs/PAMS/data/tomography_data/tiled_annotations/'
 
 _base_ = [
     './_base_/retinanet_r50_fpn.py', './_base_/hdc.py',
@@ -10,14 +10,14 @@ _base_ = [
 data = dict(
     test=dict(
         ann_file=[
-            data_root + 'train.txt',
+            data_root + 'hdc_single/ImageSets/Main/trainval.txt',
         ],
-        img_prefix=[data_root ])
+        img_prefix=[data_root + 'hdc_single/'])
 )
 model = dict(bbox_head=dict(C=1))
 # The initial learning rate, momentum, weight decay can be changed here.
-optimizer = dict(type='Adam', lr=12e-6, weight_decay=0.0001)
-
+#optimizer = dict(type='Adam', lr=12e-6, weight_decay=0.0001) #old one
+optimizer = dict(type='SGD', lr=1e-3, momentum=0.9, weight_decay=0.0001) #for hdc dataset
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 #optimizer_config = dict(grad_clip=None)
 
@@ -33,7 +33,7 @@ epoch_ratio = [3, 1]
 # The frequency of evaluating the model can be changed here.
 evaluation = dict(interval=epoch_ratio[0], metric='mAP')
 # The number of outer loops (i.e., all 3 training steps except the first Label Set Training step) can be changed here.
-epoch = 7
+epoch = 2 #was formerly 7
 # The repeat time for the labeled sets and unlabeled sets can be changed here.
 # The number of repeat times can be equivalent to the number of actual training epochs.
 X_L_repeat = 2
@@ -45,8 +45,10 @@ k = 10000
 # Note that there are 16551 images in the PASCAL VOC 2007+2012 trainval sets.
 def make_even(x):
     return (x//2)*2
-X_S_size = make_even(12150//40)#9964//40
-X_L_0_size = make_even(12150//10)#9964//20
+#X_S_size = make_even(12150//40)#9964//40
+#X_L_0_size = make_even(12150//10)#9964//20
+X_S_size = 16320//40
+X_L_0_size = 16320//20
 # The active learning cycles can be changed here.
 cycles = [0, 1, 2, 3, 4, 5, 6]
 # The work directory for saving logs and files can be changed here. Please refer to README.md for more information.

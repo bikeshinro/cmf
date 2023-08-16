@@ -8,7 +8,8 @@ from PIL import Image
 from .builder import DATASETS
 from .custom import CustomDataset
 
-ANNOTATIONS_FOLDER = 'Annotations_no_dummy'
+#ANNOTATIONS_FOLDER = 'Annotations_no_dummy'
+ANNOTATIONS_FOLDER = 'Annotations' #works for Animal and PASCALVOC dataset
 
 @DATASETS.register_module()
 class XMLDataset(CustomDataset):

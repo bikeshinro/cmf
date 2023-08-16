@@ -6,7 +6,8 @@ from .xml_style import XMLDataset
 @DATASETS.register_module()
 class HDCDataset(XMLDataset):
 
-    CLASSES = ['Defect']
+    #CLASSES = ['Defect'] #for maunufacturing defect class
+    CLASSES = ['Animal'] #for modified PASCAL grayscale dataset
 
     def __init__(self, **kwargs):
         #print("came in VOCDataset")

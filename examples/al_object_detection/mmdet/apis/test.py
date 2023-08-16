@@ -19,7 +19,7 @@ def calculate_uncertainty(cfg, model, data_loader, return_box=False):
     print('>>> Computing Instance Uncertainty...')
     uncertainty = torch.zeros(len(dataset)).cuda(torch.cuda.current_device())
     uncertainty_loc = torch.zeros(len(dataset)).cuda(torch.cuda.current_device())
-    batch_uncertainty_loc_all_N = []
+    rsuM = 0
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             data['img'][0] = data['img'][0].cuda()
@@ -42,36 +42,38 @@ def calculate_uncertainty(cfg, model, data_loader, return_box=False):
             #we have the option to find the mean or the max of all four values. We choose to use max for this operation.
             #this is for classifier to get the epistimec uncertainty igonoring the aleatoric uncertainity for now : assuming sigma is 0
             y_head_f_avg = 0.25 * (y_head_f_1 + y_head_f_2 + y_head_f_3 + y_head_f_4)
+            #y_head_f_avg = list(map(lambda m,n,o,p: (m+n+o+p)/4,y_head_f_1,y_head_f_2,y_head_f_3,y_head_f_4))
             loss_l2_p= ((y_head_f_1 - y_head_f_avg).pow(2) + (y_head_f_2 - y_head_f_avg).pow(2) + (y_head_f_3 - y_head_f_avg).pow(2) + (y_head_f_4 - y_head_f_avg).pow(2))/4
 
-            #this is for localizer to get the epistimec uncertainty igonoring the aleatoric uncertainity for now : assuming sigma is 0
+            #this is for localizer to get the epistemic uncertainty igonoring the aleatoric uncertainity for now : assuming sigma is 0
             y_head_f_r_avg = 0.25 * (y_head_f_r_1 + y_head_f_r_2 + y_head_f_r_3 + y_head_f_r_4)
             loss_l2__r_p = ((y_head_f_r_1 - y_head_f_r_avg).pow(2) + (y_head_f_r_2 - y_head_f_r_avg).pow(2) + (y_head_f_r_3 - y_head_f_r_avg).pow(2) + (y_head_f_r_4 - y_head_f_r_avg).pow(2))/4
 
             #loss_l2_p = (y_head_f_1 - y_head_f_2).pow(2) + (y_head_f_3 - y_head_f_4).pow(2)
             #loss_l2_p = (y_head_f_1 - y_head_f_2).pow(2)
             
-            uncertainty_all_N = loss_l2_p.max(dim=1) #uncertainty for classifier
+            uncertainty_all_N, _ = loss_l2_p.max(dim=1) #uncertainty for classifier
             uncertainty_loc__all_N = loss_l2__r_p.max(dim=1)[0] #uncertainty for localizer, gets the maximum value over the 4 bounding box outputs
             #uncertainty_all_N = loss_l2_p.mean(dim=1)
-            arg = uncertainty_all_N.argsort()
+            _, arg = uncertainty_all_N.argsort()
             uncertainty_single = uncertainty_all_N[arg[-cfg.k:]].max()
             #uncertainty_single = uncertainty_all_N[arg[-cfg.k:]].mean()
             uncertainty[i] = uncertainty_single
             
-            batch_uncertainty_loc_all_N.append(uncertainty_loc__all_N)
-            uncertainty_loc[i] = uncertainty_loc__all_N.max()
+            #batch_uncertainty_loc_all_N.append(uncertainty_loc__all_N)
+            uncertainty_loc[i] = uncertainty_loc__all_N.max() #max of uij over all j
+            rsuM += uncertainty_loc[i]
+            #rvaR += loss_l2__r_p.max()
             if i % 1000 == 0:
                 print('>>> ', i, '/', len(dataset))
-    batch_uncertainty_loc_all_N = torch.cat(batch_uncertainty_loc_all_N,dim=0)
-    overall_mean = torch.mean(batch_uncertainty_loc_all_N)
-    overall_std = torch.std(batch_uncertainty_loc_all_N)
-    normalized_uncertainty_loc_all_N = (batch_uncertainty_loc_all_N - overall_mean) / overall_std
-    normalized_uncertainty_loc = normalized_uncertainty_loc_all_N.max(dim=1)[0]
-    arg = normalized_uncertainty_loc.argsort()
-    uncertainty_single_loc = normalized_uncertainty_loc[arg[-cfg.k:]].max()
-    uncertainty_loc[i] = uncertainty_single_loc
-    aggregate_uncertainty = uncertainty_loc + uncertainty
+    overall_mean = rsuM / len(dataset)
+    overall_std = (uncertainty_loc - overall_mean).square().sum/len(dataset)
+    #overall_std = torch.sum(torch.square(uncertainty_loc - overall_mean))/len(dataset) #alternative method
+    normalized_uncertainty_loc = (uncertainty_loc - overall_mean) / overall_std
+    #arg = normalized_uncertainty_loc.argsort()
+    #uncertainty_single_loc = normalized_uncertainty_loc[arg[-cfg.k:]].max()
+    #uncertainty_loc[i] = uncertainty_single_loc
+    aggregate_uncertainty = normalized_uncertainty_loc + uncertainty
     return aggregate_uncertainty.cpu()
 
 

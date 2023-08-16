@@ -102,6 +102,10 @@ class SingleStageDetector(BaseDetector):
             y_head_f_2_1level = []
             y_head_f_3_1level = []
             y_head_f_4_1level = []
+            y_head_f_r_1_1level = []
+            y_head_f_r_2_1level = []
+            y_head_f_r_3_1level = []
+            y_head_f_r_4_1level = []
             for y_head_f_i_single in y_head_f_1:
                 y_head_f_1_1level.append(y_head_f_i_single.permute(0,2,3,1).reshape(-1, self.bbox_head.cls_out_channels))
             for y_head_f_i_single in y_head_f_2:
@@ -110,9 +114,19 @@ class SingleStageDetector(BaseDetector):
                 y_head_f_3_1level.append(y_head_f_i_single.permute(0,2,3,1).reshape(-1, self.bbox_head.cls_out_channels))
             for y_head_f_i_single in y_head_f_4:
                 y_head_f_4_1level.append(y_head_f_i_single.permute(0,2,3,1).reshape(-1, self.bbox_head.cls_out_channels))
-            return y_head_f_1_1level, y_head_f_2_1level, y_head_f_3_1level, y_head_f_4_1level, y_head_cls
+            for y_head_f_r_i_single in y_head_f_r_1:
+                y_head_f_r_1_1level.append(y_head_f_r_i_single.permute(0,2,3,1).reshape(-1, 4))
+            for y_head_f_r_i_single in y_head_f_r_2:
+                y_head_f_r_2_1level.append(y_head_f_r_i_single.permute(0,2,3,1).reshape(-1, 4))
+            for y_head_f_r_i_single in y_head_f_r_3:
+                y_head_f_r_3_1level.append(y_head_f_r_i_single.permute(0,2,3,1).reshape(-1, 4))
+            for y_head_f_r_i_single in y_head_f_r_4:
+                y_head_f_r_4_1level.append(y_head_f_r_i_single.permute(0,2,3,1).reshape(-1, 4))
+            return y_head_f_1_1level, y_head_f_2_1level, y_head_f_3_1level, y_head_f_4_1level, y_head_f_r_1_1level, y_head_f_r_2_1level, y_head_f_r_3_1level, y_head_f_r_4_1level, y_head_cls
         #finding the mean values across the four ensemble for the classifier and localizer
-        outs = (0.25*(y_head_f_1 + y_head_f_2 + y_head_f_3 + y_head_f_4), 0.25*(y_head_f_r_1 + y_head_f_r_2 + y_head_f_r_3 + y_head_f_r_4))
+        y_head_f_avg = list(map(lambda m, n, o, p: (m + n + o + p) / 4, y_head_f_1, y_head_f_2, y_head_f_3, y_head_f_4))
+        y_head_f_r_avg = list(map(lambda m, n, o, p: (m + n + o + p) / 4, y_head_f_r_1, y_head_f_r_2, y_head_f_r_3, y_head_f_r_4))
+        outs = (y_head_f_avg,y_head_f_r_avg)
         y_head_loc_cls = self.bbox_head.get_bboxes(*outs, img_metas, rescale=rescale)
         # skip post-processing when exporting to ONNX
         if torch.onnx.is_in_onnx_export():

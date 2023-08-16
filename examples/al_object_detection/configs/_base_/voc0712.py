@@ -1,6 +1,6 @@
 # Please change the dataset directory to your actual directory
-data_root = '/mnt/beegfs/PAMS/data/tomography_data/tiled_annotations/'
-
+#data_root = '/mnt/beegfs/PAMS/data/tomography_data/tiled_annotations/'
+data_root = '/home/keshinro/al_object_detection_prob_models/data/VOCdevkit/' #using the concatenated PASCAL VOC dataset
 # dataset settings
 dataset_type = 'VOCDataset'
 img_norm_cfg = dict(
@@ -39,17 +39,17 @@ data = dict(
         dataset=dict(
             type=dataset_type,
             ann_file=[
-                data_root + 'train.txt'],#training set indexes
-            img_prefix=[data_root],
+                data_root + 'VOC/ImageSets/Main/trainval.txt'],#training set indexes
+            img_prefix=[data_root + 'VOC/'],
             pipeline=train_pipeline)),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'train_val.txt',#VAL INDEXES
-        img_prefix=data_root ,
+        ann_file=data_root + 'VOC/ImageSets/Main/test.txt',#VAL INDEXES
+        img_prefix=data_root + 'VOC/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'train_val.txt',#USE VAL FOR TEST
-        img_prefix=data_root ,
+        ann_file=data_root + 'VOC/ImageSets/Main/test.txt',#USE VAL FOR TEST
+        img_prefix=data_root + 'VOC/',
         pipeline=test_pipeline))
 evaluation = dict(interval=1, metric='mAP')
